@@ -1,6 +1,9 @@
 images/*
+kaggle/*
 submissions/*
 *.pyc
 milestone/*
 proposal/*
+report/*
 *.csv
+stuff.py

@@ -1,43 +1,48 @@
 import numpy as np 
 import pandas as pd
-import matplotlib.pyplot as plt
-import cv2
-
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torchvision
-import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
+import torch.utils.data as Data
+from albumentations import *
+from albumentations.pytorch import ToTensor
 
 
-class PlantDataset(Dataset):
-    def __init__(self, df, mode, transforms=None):
-        self.df = df
-        self.transforms=transforms
-        self.mode = mode
+class PlantDataset(Data.Dataset):
+    def __init__(self, image_paths, labels = None, train = True, test = False):
+        self.paths = image_paths
+        self.test = test
+        if self.test == False:
+            self.labels = labels
+        self.train = train
+        self.train_transform = Compose([HorizontalFlip(p=0.5),
+                                  VerticalFlip(p=0.5),
+                                  ShiftScaleRotate(rotate_limit=25.0, p=0.7),
+                                  OneOf([IAAEmboss(p=1),
+                                         IAASharpen(p=1),
+                                         Blur(p=1)], p=0.5),
+                                  IAAPiecewiseAffine(p=0.5)])
+        self.test_transform = Compose([HorizontalFlip(p=0.5),
+                                       VerticalFlip(p=0.5),
+                                       ShiftScaleRotate(rotate_limit=25.0, p=0.7)])
+        self.default_transform = Compose([Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225), always_apply=True),
+                                         ToTensor()]) #normalized for pretrained network
         
     def __len__(self):
-        return self.df.shape[0]
+        return self.paths.shape[0]
     
-    def __getitem__(self, idx):
-        image_src = './images/' + self.df['image_id'][idx] + '.jpg'
-        image = cv2.imread(image_src, cv2.IMREAD_COLOR)
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        image = cv2.resize(image, (512, 320), interpolation = cv2.INTER_AREA).astype('uint8')
-        image = np.transpose(image, (2, 0, 1))
-        if self.transforms:
-            transformed = self.transforms(image=image)
-            image = transformed['image']
-
-        if (self.mode == "test"):
-            return image, self.df.loc[idx, 'image_id']
+    def __getitem__(self, i):
+        image = np.load(self.paths[i]) #load from .npy file!
+        if self.test==False:
+            label = torch.tensor(np.argmax(self.labels.loc[i,:].values)) #loss function used later doesnt take one-hot encoded labels, so convert it using argmax
+        if self.train:
+            image = self.train_transform(image = image)['image']
+            image = self.default_transform(image=image)['image']
+        elif self.test:
+            image = self.test_transform(image=image)['image']
+            image = self.default_transform(image=image)['image']
+        else:
+            image = self.default_transform(image = image)['image']
         
-        # labels = self.df.loc[idx, ['healthy', 'multiple_diseases', 'rust', 'scab']].values
-        # labels = torch.from_numpy(labels.astype(np.int8))
-        # labels = labels.unsqueeze(-1)
-        labels = self.df.loc[idx, ['class']].values
-        labels = torch.from_numpy(labels.astype(np.int8))
-        labels = labels.squeeze(-1)
-        labels = labels.long()
-        return image, labels
+        if self.test==False:
+            return image, label
+        return image
