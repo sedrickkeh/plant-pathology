@@ -9,15 +9,18 @@ from scipy.special import softmax
 from tqdm import tqdm
 
 import utils
-from models import EfficientNetModel
+from models import EfficientNetModel, DenseNetModel, ResNetModel, VGGNetModel
 from dataloader import get_data, get_dataloaders
 from trainer import train_fn, valid_fn, test_fn
-from plots import plot_loss, plot_acc, plot_conf_mat
+from plots import plot_loss, plot_acc, plot_conf_mat, save_results
+
 
 def get_model(model_name, args):
-    if (model_name == "effnet"):
-        return EfficientNetModel(args)
-    else return EfficientNetModel(args)
+    if (model_name == "effnet"): return EfficientNetModel(args)
+    elif (model_name == "densenet"): return DenseNetModel(args)
+    elif (model_name == "resnet"): return ResNetModel(args)
+    elif (model_name == "vggnet"): return VGGNetModel(args)
+    else: return EfficientNetModel(args)
 
 def main():
     parser = argparse.ArgumentParser()
@@ -70,10 +73,13 @@ def main():
         tqdm.write(printstr)
 
 
-    ## Generate plots
-    plot_loss(train_loss, val_loss, "effnet")
-    plot_acc(train_acc, val_acc, "effnet")
-    plot_conf_mat(conf_mat, "effnet")
+    ## Generate plots 
+    plot_loss(train_loss, val_loss, args.model)
+    plot_acc(train_acc, val_acc, args.model)
+    plot_conf_mat(conf_mat, args.model)
+    ## Save results
+    save_results(train_loss, val_loss, train_acc, val_acc, args.model)
+
 
 
     ## Testing
@@ -90,7 +96,8 @@ def main():
     sub1 = sub_eff.copy()
     sub1['image_id'] = test.image_id
     sub1 = sub1[['image_id','healthy','multiple_diseases','rust','scab']]
-    sub1.to_csv('submission_efficientnet.csv', index = False)
+    submission_name = "submission_{}.csv".format(args.model)
+    sub1.to_csv(submission_name, index = False)
 
 
 
