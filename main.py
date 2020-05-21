@@ -9,7 +9,7 @@ from scipy.special import softmax
 from tqdm import tqdm
 
 import utils
-from models import EfficientNetModel, DenseNetModel, ResNetModel, VGGNetModel
+from models import EfficientNetModel, DenseNetModel, ResNetModel, VGGNetModel, EfficientNetModel_NoisyStudent
 from dataloader import get_data, get_dataloaders
 from trainer import train_fn, valid_fn, test_fn
 from plots import plot_loss, plot_acc, plot_conf_mat, save_results
@@ -20,7 +20,8 @@ def get_model(model_name, args):
     elif (model_name == "densenet"): return DenseNetModel(args)
     elif (model_name == "resnet"): return ResNetModel(args)
     elif (model_name == "vggnet"): return VGGNetModel(args)
-    else: return EfficientNetModel(args)
+    elif (model_name == "effnet_ns"): return EfficientNetModel_NoisyStudent(args)
+    else: return EfficientNetModel_NoisyStudent(args)
 
 def main():
     parser = argparse.ArgumentParser()
@@ -28,7 +29,7 @@ def main():
     parser.add_argument("--decay", type=float, default=1e-3)
     parser.add_argument("--n_epochs", type=int, default=30)
     parser.add_argument("--batch_size", type=int, default=4)
-    parser.add_argument("--model", type=str, default="effnet")
+    parser.add_argument("--model", type=str, default="effnet_ns")
     args = parser.parse_args()
 
     ## Setup device
@@ -85,14 +86,14 @@ def main():
     ## Testing
     subs = []
     test = pd.read_csv('test.csv')
-    for i in range(3): # average over 3 runs
+    for i in range(5): # average over 5 runs
         out = test_fn(model, testloader, device)
         output = pd.DataFrame(softmax(out,1), columns = ['healthy','multiple_diseases','rust','scab'])
         output.drop(0, inplace = True)
         output.reset_index(drop=True, inplace=True)
         subs.append(output)
 
-    sub_eff = sum(subs)/3
+    sub_eff = sum(subs)/5
     sub1 = sub_eff.copy()
     sub1['image_id'] = test.image_id
     sub1 = sub1[['image_id','healthy','multiple_diseases','rust','scab']]

@@ -16,6 +16,18 @@ class EfficientNetModel(nn.Module):
     def forward(self, x):
         return self.model(x)    
 
+class EfficientNetModel_NoisyStudent(nn.Module):
+    def __init__(self, args):
+        super(EfficientNetModel_NoisyStudent, self).__init__()
+        self.model = torch.hub.load('rwightman/gen-efficientnet-pytorch', 'tf_efficientnet_b5_ns', pretrained=True)
+        end_features = self.model.classifier.in_features
+        self.model.classifier = nn.Sequential(nn.Linear(end_features,1000,bias=True),
+                                    nn.ReLU(),
+                                    nn.Dropout(p=0.5),
+                                    nn.Linear(1000,4, bias = True))
+    def forward(self, x):
+        return self.model(x)   
+
 
 
 class DenseNetModel(nn.Module):
